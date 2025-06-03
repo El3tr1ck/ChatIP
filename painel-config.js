@@ -96,7 +96,7 @@ listaUsuarios.style.margin = "0";
 painel.appendChild(listaUsuarios);
 
 async function carregarUsuarios(roomID) {
-  listaUsuarios.innerHTML = "Carregando historico de usuarios...";
+  listaUsuarios.innerHTML = "Carregando usuários...";
 
   try {
     const usersCol = collection(db, "rooms", roomID, "users");
@@ -105,7 +105,7 @@ async function carregarUsuarios(roomID) {
     listaUsuarios.innerHTML = "";
 
     if (usersSnapshot.empty) {
-      listaUsuarios.textContent = "Nenhum historico de usuários encontrado.";
+      listaUsuarios.textContent = "Nenhum usuário encontrado.";
       return;
     }
 
