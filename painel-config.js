@@ -1,22 +1,22 @@
 import { getApp, getApps } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
-// Usa o app já inicializado no seu index/chat
+// Pega o app Firebase já inicializado no projeto
 const app = getApps().length ? getApp() : null;
 
 if (!app) {
-  console.error("Firebase App não inicializado! Certifique-se de inicializar no seu arquivo principal.");
+  console.error("Firebase app não inicializado. Inicialize no seu arquivo principal.");
 }
 
 const db = getFirestore(app);
 
-// Adiciona FontAwesome (ícone user)
+// Adiciona FontAwesome para ícones (ícone de user)
 const faLink = document.createElement("link");
 faLink.rel = "stylesheet";
 faLink.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
 document.head.appendChild(faLink);
 
-// Cria o botão no canto superior esquerdo
+// Cria botão no canto superior esquerdo
 const btn = document.createElement("button");
 btn.innerHTML = `<i class="fa-solid fa-user"></i>`;
 btn.title = "Mostrar usuários do chat";
@@ -39,7 +39,7 @@ btn.onmouseleave = () => btn.style.backgroundColor = "#282c34";
 
 document.body.appendChild(btn);
 
-// Cria o painel lateral
+// Painel lateral para exibir usuários
 const painel = document.createElement("div");
 painel.style.position = "fixed";
 painel.style.top = "0";
@@ -57,7 +57,7 @@ painel.style.fontFamily = "Segoe UI, Tahoma, Geneva, Verdana, sans-serif";
 
 document.body.appendChild(painel);
 
-// Header do painel
+// Header do painel com título e botão fechar
 const header = document.createElement("div");
 header.style.display = "flex";
 header.style.justifyContent = "space-between";
@@ -88,7 +88,7 @@ header.appendChild(title);
 header.appendChild(fecharBtn);
 painel.appendChild(header);
 
-// Lista de usuários
+// Lista onde os usuários serão mostrados
 const listaUsuarios = document.createElement("ul");
 listaUsuarios.style.listStyle = "none";
 listaUsuarios.style.padding = "0";
@@ -133,7 +133,6 @@ btn.onclick = () => {
   } else {
     painel.style.left = "0px";
 
-    // Pega o IP/sala atual do sessionStorage (igual chat.html)
     const roomID = sessionStorage.getItem("ip");
     if (!roomID) {
       listaUsuarios.innerHTML = "IP da sala não encontrado na sessão.";
