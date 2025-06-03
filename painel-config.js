@@ -1,89 +1,9 @@
-// Adiciona botão ao body
-const configBtn = document.createElement('button');
-configBtn.id = 'configBtn';
-configBtn.textContent = '⚙️';
-document.body.appendChild(configBtn);
-
-// Adiciona painel ao body
-const configPanel = document.createElement('div');
-configPanel.id = 'configPanel';
-configPanel.innerHTML = `
-  <h2>Membros do Chat</h2>
-  <div id="userList">Carregando...</div>
-`;
-document.body.appendChild(configPanel);
-
-// Estilos via JS
-const style = document.createElement('style');
-style.textContent = `
-  #configBtn {
-    position: fixed;
-    top: 15px;
-    left: 15px;
-    z-index: 1000;
-    padding: 8px 12px;
-    background: #222;
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    font-size: 18px;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    transition: background 0.3s;
-  }
-
-  #configBtn:hover {
-    background: #444;
-  }
-
-  #configPanel {
-    position: fixed;
-    top: 0;
-    left: -320px;
-    width: 300px;
-    height: 100%;
-    background: #f7f7f7;
-    color: #000;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
-    padding: 20px;
-    transition: left 0.3s ease;
-    z-index: 999;
-    overflow-y: auto;
-  }
-
-  #configPanel.show {
-    left: 0;
-  }
-
-  #configPanel h2 {
-    margin-top: 0;
-    font-size: 18px;
-  }
-
-  .user {
-    padding: 8px;
-    margin-bottom: 6px;
-    background: #fff;
-    border-radius: 4px;
-    font-size: 14px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-  }
-`;
-document.head.appendChild(style);
-
-// Ação do botão
-configBtn.addEventListener('click', () => {
-  configPanel.classList.toggle('show');
-});
-
-// Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCgG8qVpsPMq_nXSAi3Ok-Ri6fBBUklXLc",
   authDomain: "chat-alpha-e-beta.firebaseapp.com",
-  databaseURL: "https://chat-alpha-e-beta-default-rtdb.firebaseio.com",
   projectId: "chat-alpha-e-beta",
   storageBucket: "chat-alpha-e-beta.firebasestorage.app",
   messagingSenderId: "873372870268",
@@ -92,24 +12,134 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const db = getFirestore(app);
 
-// Carrega usuários
-const userList = document.getElementById('userList');
-const usersRef = ref(db, 'users');
+// FontAwesome
+const faLink = document.createElement("link");
+faLink.rel = "stylesheet";
+faLink.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
+document.head.appendChild(faLink);
 
-onValue(usersRef, (snapshot) => {
-  const data = snapshot.val();
-  userList.innerHTML = ''; // limpa a lista
+const btn = document.createElement("button");
+btn.innerHTML = `<i class="fa-solid fa-user"></i>`;
+btn.title = "Mostrar usuários do chat";
 
-  if (data) {
-    Object.entries(data).forEach(([uid, user]) => {
-      const div = document.createElement('div');
-      div.className = 'user';
-      div.textContent = user.nome || user.username || uid;
-      userList.appendChild(div);
+btn.style.position = "fixed";
+btn.style.top = "12px";
+btn.style.left = "12px";
+btn.style.zIndex = "9999";
+btn.style.padding = "8px 14px";
+btn.style.borderRadius = "6px";
+btn.style.border = "none";
+btn.style.backgroundColor = "#282c34";
+btn.style.color = "#61dafb";
+btn.style.cursor = "pointer";
+btn.style.fontSize = "20px";
+btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+btn.style.transition = "background-color 0.3s ease";
+btn.onmouseenter = () => btn.style.backgroundColor = "#20232a";
+btn.onmouseleave = () => btn.style.backgroundColor = "#282c34";
+
+document.body.appendChild(btn);
+
+const painel = document.createElement("div");
+painel.style.position = "fixed";
+painel.style.top = "0";
+painel.style.left = "-320px";
+painel.style.width = "320px";
+painel.style.height = "100vh";
+painel.style.backgroundColor = "#20232a";
+painel.style.color = "#61dafb";
+painel.style.padding = "20px";
+painel.style.boxShadow = "2px 0 8px rgba(0,0,0,0.4)";
+painel.style.transition = "left 0.3s ease";
+painel.style.overflowY = "auto";
+painel.style.zIndex = "9998";
+painel.style.fontFamily = "Segoe UI, Tahoma, Geneva, Verdana, sans-serif";
+
+document.body.appendChild(painel);
+
+const header = document.createElement("div");
+header.style.display = "flex";
+header.style.justifyContent = "space-between";
+header.style.alignItems = "center";
+header.style.marginBottom = "16px";
+
+const title = document.createElement("h2");
+title.textContent = "Usuários que falaram";
+title.style.margin = "0";
+title.style.fontSize = "1.4rem";
+
+const fecharBtn = document.createElement("button");
+fecharBtn.textContent = "×";
+fecharBtn.title = "Fechar painel";
+fecharBtn.style.fontSize = "24px";
+fecharBtn.style.background = "none";
+fecharBtn.style.border = "none";
+fecharBtn.style.color = "#61dafb";
+fecharBtn.style.cursor = "pointer";
+fecharBtn.style.lineHeight = "1";
+fecharBtn.style.padding = "0";
+
+fecharBtn.onclick = () => {
+  painel.style.left = "-320px";
+};
+
+header.appendChild(title);
+header.appendChild(fecharBtn);
+painel.appendChild(header);
+
+const listaUsuarios = document.createElement("ul");
+listaUsuarios.style.listStyle = "none";
+listaUsuarios.style.padding = "0";
+listaUsuarios.style.margin = "0";
+painel.appendChild(listaUsuarios);
+
+async function carregarUsuarios(roomID) {
+  listaUsuarios.innerHTML = "Carregando usuários...";
+
+  try {
+    const usersCol = collection(db, "rooms", roomID, "users");
+    const usersSnapshot = await getDocs(usersCol);
+
+    listaUsuarios.innerHTML = "";
+
+    if (usersSnapshot.empty) {
+      listaUsuarios.textContent = "Nenhum usuário encontrado.";
+      return;
+    }
+
+    usersSnapshot.forEach(userDoc => {
+      const user = userDoc.data();
+      const li = document.createElement("li");
+      li.style.padding = "6px 0";
+      li.style.borderBottom = "1px solid #282c34";
+      li.style.display = "flex";
+      li.style.alignItems = "center";
+      li.style.gap = "8px";
+
+      li.innerHTML = `<i class="fa-solid fa-user"></i> ${user.name || userDoc.id}`;
+      listaUsuarios.appendChild(li);
     });
-  } else {
-    userList.innerHTML = '<p>Nenhum usuário encontrado.</p>';
+  } catch (error) {
+    listaUsuarios.textContent = "Erro ao carregar usuários.";
+    console.error(error);
   }
-});
+}
+
+btn.onclick = () => {
+  if (painel.style.left === "0px") {
+    painel.style.left = "-320px";
+  } else {
+    painel.style.left = "0px";
+
+    // Pega o IP/sala atual do sessionStorage (igual chat.html)
+    const roomID = sessionStorage.getItem("ip");
+    if (!roomID) {
+      listaUsuarios.innerHTML = "IP da sala não encontrado na sessão.";
+      return;
+    }
+
+    carregarUsuarios(roomID);
+  }
+};
