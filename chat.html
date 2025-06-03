@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Moderno com Firestore</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-start: #e0e7ff;
+            --bg-end: #f3e8ff;
+            --msg-self-start: #34d399;
+            --msg-self-end: #10b981;
+            --msg-other: #ffffff;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text: #111827;
+            --text-secondary: #6b7280;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        [data-theme="dark"] {
+            --bg-start: #1f2937;
+            --bg-end: #111827;
+            --msg-other: #374151;
+            --text: #f9fafb;
+            --text-secondary: #9ca3af;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            min-height: 100vh;
+            color: var(--text);
+            transition: background 0.3s, color 0.3s;
+            position: relative;
+        }
+        #themeToggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            z-index: 40;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s, transform 0.2s;
+        }
+        #themeToggle:hover {
+            background: var(--primary-hover);
+            transform: scale(1.1);
+        }
+        #initialPanel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 400px;
+            margin: 10vh auto;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            animation: slideIn 0.5s ease-out;
+            backdrop-filter: blur(10px);
+        }
+        #initialPanel input {
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        #initialPanel input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        #initialPanel button {
+            padding: 12px;
+            background: linear-gradient(90deg, var(--primary), #60a5fa);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+        }
+        #initialPanel button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(90deg, var(--primary-hover), #3b82f6);
+        }
+        #chatContainer {
+            display: none;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 20px auto;
+            height: calc(100vh - 40px);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+            backdrop-filter: blur(10px);
+        }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            position: relative;
+            animation: messageIn 0.3s ease-out;
+            transition: transform 0.2s;
+        }
+        .message-box.other {
+            background: var(--msg-other);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .message-box.self {
+            background: linear-gradient(90deg, var(--msg-self-start), var(--msg-self-end));
+            align-self: flex-end;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #9ca3af;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .message-content {
+            flex: 1;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            color: var(--primary);
+        }
+        .message-text {
+            font-size: 15px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        .message-content img, .message-content video {
+            max-width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .timestamp {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .message-box:hover .timestamp {
+            opacity: 1;
+        }
+        .user-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--msg-other);
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            margin-top: 8px;
+            border-radius: 8px;
+            z-index: 10;
+            width: 200px;
+            box-shadow: var(--shadow);
+            font-size: 14px;
+        }
+        #inputContainer {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.95);
+            border-top: 1px solid #e5e7eb;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            font-size: 15px;
+            resize: none;
+            max-height: 120px;
+            background: #f9fafb;
+            transition: border-color 0.3s;
+        }
+        #messageInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        #sendButton, #uploadButton {
+            padding: 12px;
+            border: none;
+            border-radius: 24px;
+            cursor: not-allowed;
+            transition: transform 0.2s;
+        }
+        #sendButton {
+            background: var(--primary);
+            color: #fff;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        #sendButton.active {
+            animation: pulse 1.5s infinite;
+        }
+        #sendButton:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+        #uploadButton {
+            background: #e5e7eb;
+            font-size: 18px;
+            opacity: 0.6;
+        }
+        #uploadMenu {
+            display: none;
+            position: absolute;
+            bottom: 48px;
+            left: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 8px;
+            border-radius: 8px;
+            z-index: 10;
+        }
+        #uploadMenu button {
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: not-allowed;
+            font-size: 14px;
+        }
+        #mediaPanel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+        #mediaPanel img, #mediaPanel video {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+        #mediaPanel video {
+            controls: true;
+        }
+        #contextMenu {
+            display: none;
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 30;
+            padding: 8px 0;
+            animation: fadeIn 0.2s ease-out;
+            backdrop-filter: blur(10px);
+        }
+        #contextMenu button {
+            display: block;
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text);
+            transition: background 0.2s;
+        }
+        #contextMenu button:hover {
+            background: #f3f4f6;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes messageIn {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        @media (max-width: 600px) {
+            #initialPanel, #chatContainer {
+                margin: 10px;
+                border-radius: 12px;
+            }
+            .message-box {
+                max-width: 85%;
+            }
+            #inputContainer {
+                padding: 12px;
+            }
+            #themeToggle {
+                top: 10px;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <button id="themeToggle" title="Alternar tema"><i class="fas fa-moon"></i></button>
+    <div id="initialPanel">
+        <h2 style="font-size: 24px; font-weight: 600; text-align: center;">Entrar no Chat</h2>
+        <input id="nickInput" type="text" placeholder="Nick (obrigatório)" required>
+        <input id="contactInput" type="text" placeholder="Email ou contato (opcional)">
+        <input id="roomIdInput" type="text" placeholder="ID da sala (5 caracteres)" maxlength="5" required>
+        <button id="joinButton">Entrar</button>
+    </div>
+    <div id="chatContainer">
+        <div id="messages"></div>
+        <div id="inputContainer">
+            <div style="position: relative;">
+                <button id="uploadButton" disabled>≡</button>
+                <div id="uploadMenu">
+                    <button disabled>Fazer upload</button>
+                </div>
+                <input id="fileInput" type="file" accept="image/*,video/*" style="display: none;" disabled>
+            </div>
+            <textarea id="messageInput" placeholder="Digite sua mensagem..."></textarea>
+            <button id="sendButton">Enviar</button>
+        </div>
+    </div>
+    <div id="mediaPanel"></div>
+    <div id="contextMenu">
+        <button id="copyMessage">Copiar mensagem</button>
+        <button id="deleteMessage">Apagar</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCgG8qVpsPMq_nXSAi3Ok-Ri6fBBUklXLc",
+            authDomain: "chat-alpha-e-beta.firebaseapp.com",
+            projectId: "chat-alpha-e-beta",
+            storageBucket: "chat-alpha-e-beta.firebasestorage.app",
+            messagingSenderId: "873372870268",
+            appId: "1:873372870268:web:20995a415350bf9",
+            measurementId: "G-RVQ446VZRD"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let userData = JSON.parse(localStorage.getItem('userData')) || null;
+        let roomName = '';
+        let unsubscribeMessages = null;
+        let currentMessageId = null;
+        let longPressTimer = null;
+
+        // Gerar cor de avatar baseada no roomId
+        function getAvatarColor(roomId) {
+            let hash = 0;
+            for (let i = 0; i < roomId.length; i++) {
+                hash = roomId.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = hash % 360;
+            return `hsl(${hue}, 70%, 50%)`;
+        }
+
+        // Formatar timestamp
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function getLocalIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip.replace(/\./g, '_');
+            } catch (error) {
+                console.error('Erro ao obter IP:', error);
+                return 'default_room';
+            }
+        }
+
+        async function joinRoom() {
+            const nick = document.getElementById('nickInput').value.trim();
+            const contact = document.getElementById('contactInput').value.trim();
+            const roomId = document.getElementById('roomIdInput').value.trim();
+
+            if (!nick || roomId.length !== 5) {
+                alert('Nick e ID da sala (5 caracteres) são obrigatórios!');
+                return;
+            }
+
+            try {
+                if (unsubscribeMessages) {
+                    unsubscribeMessages();
+                    unsubscribeMessages = null;
+                }
+
+                roomName = await getLocalIP();
+                userData = { nick, contact: contact || 'Sem contatos', roomId };
+                localStorage.setItem('userData', JSON.stringify(userData));
+
+                await setDoc(doc(db, `rooms/${roomName}/users`, roomId), userData);
+                console.log(`Usuário ${roomId} registrado em rooms/${roomName}/users`);
+
+                document.getElementById('initialPanel').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'flex';
+
+                const messagesQuery = query(collection(db, `rooms/${roomName}/messages`), orderBy('timestamp'));
+                unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added' || change.type === 'modified') {
+                            displayMessage(change.doc.data(), change.doc.id);
+                        }
+                    });
+                }, (error) => {
+                    console.error('Erro ao escutar mensagens:', error);
+                    alert('Falha ao carregar mensagens. Verifique o console.');
+                });
+            } catch (error) {
+                console.error('Erro ao entrar na sala:', error);
+                alert('Falha ao entrar na sala. Verifique o console para detalhes.');
+            }
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = messageInput.value.trim();
+            if (!message || !userData) return;
+
+            try {
+                sendButton.disabled = true;
+                const messagesRef = collection(db, `rooms/${roomName}/messages`);
+                await addDoc(messagesRef, {
+                    nick: userData.nick,
+                    roomId: userData.roomId,
+                    contact: userData.contact,
+                    content: message,
+                    type: 'text',
+                    timestamp: Date.now(),
+                    deleted: false
+                });
+                console.log(`Mensagem enviada por ${userData.nick}`);
+                messageInput.value = '';
+            } catch (error) {
+                console.error('Erro ao enviar mensagem:', error);
+                alert('Falha ao enviar mensagem. Verifique o console para detalhes.');
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
+
+        function displayMessage(msg, msgId) {
+            if (msg.deleted) return;
+
+            const messagesDiv = document.getElementById('messages');
+            const isSelf = msg.roomId === userData.roomId;
+            const existingMessage = document.querySelector(`.message-box[data-id="${msgId}"]`);
+            if (existingMessage) return;
+
+            const messageBox = document.createElement('div');
+            messageBox.className = `message-box ${isSelf ? 'self' : 'other'}`;
+            messageBox.dataset.id = msgId;
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.style.background = getAvatarColor(msg.roomId);
+            avatar.textContent = msg.nick[0].toUpperCase();
+
+            if (!isSelf) messageBox.prepend(avatar);
+            messageBox.innerHTML = `
+                <div class="message-content">
+                    <div class="user-name" onclick="toggleUserPanel(this)">${msg.nick}</div>
+                    <div class="message-text"></div>
+                    <div class="user-panel">
+                        <p><strong>ID:</strong> ${msg.roomId}</p>
+                        <p><strong>Contatos:</strong> ${msg.contact}</p>
+                    </div>
+                    <span class="timestamp">${formatTimestamp(msg.timestamp)}</span>
+                </div>
+            `;
+            const contentDiv = messageBox.querySelector('.message-text');
+            if (msg.type === 'text') {
+                contentDiv.textContent = msg.content;
+            } else if (msg.type === 'image') {
+                contentDiv.innerHTML = `<img src="${msg.content}" onclick="showMedia('${msg.content}', 'image')">`;
+            } else if (msg.type === 'video') {
+                contentDiv.innerHTML = `<video src="${msg.content}" onclick="showMedia('${msg.content}', 'video')" controls></video>`;
+            }
+            messagesDiv.appendChild(messageBox);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            messageBox.addEventListener('contextmenu', (e) => showContextMenu(e, msgId, msg.content));
+            messageBox.addEventListener('touchstart', (e) => {
+                longPressTimer = setTimeout(() => showContextMenu(e, msgId, msg.content), 500);
+            });
+            messageBox.addEventListener('touchend', () => clearTimeout(longPressTimer));
+            messageBox.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+        }
+
+        function showContextMenu(event, msgId, content) {
+            event.preventDefault();
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${event.clientX || event.touches[0].clientX}px`;
+            contextMenu.style.top = `${event.clientY || event.touches[0].clientY}px`;
+            currentMessageId = msgId;
+
+            document.getElementById('copyMessage').onclick = () => {
+                navigator.clipboard.writeText(content)
+                    .then(() => console.log('Mensagem copiada:', content))
+                    .catch(err => console.error('Erro ao copiar:', err));
+                hideContextMenu();
+            };
+            document.getElementById('deleteMessage').onclick = () => {
+                deleteMessage(msgId);
+                hideContextMenu();
+            };
+        }
+
+        function hideContextMenu() {
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'none';
+            currentMessageId = null;
+        }
+
+        async function deleteMessage(msgId) {
+            try {
+                const messageRef = doc(db, `rooms/${roomName}/messages`, msgId);
+                await updateDoc(messageRef, { deleted: true });
+                console.log(`Mensagem ${msgId} marcada como deletada`);
+                const messageBox = document.querySelector(`.message-box[data-id="${msgId}"]`);
+                if (messageBox) messageBox.remove();
+            } catch (error) {
+                console.error('Erro ao apagar mensagem:', error);
+                alert('Falha ao apagar mensagem. Verifique o console.');
+            }
+        }
+
+        function toggleUserPanel(el) {
+            const panel = el.nextElementSibling.nextElementSibling;
+            const isVisible = panel.style.display === 'block';
+            document.querySelectorAll('.user-panel').forEach(p => p.style.display = 'none');
+            panel.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function showMedia(url, type) {
+            const mediaPanel = document.getElementById('mediaPanel');
+            mediaPanel.innerHTML = type === 'image' 
+                ? `<img src="${url}">` 
+                : `<video src="${url}" controls></video>`;
+            mediaPanel.style.display = 'flex';
+        }
+
+        function closeMediaPanel() {
+            const mediaPanel = document.getElementById('mediaPanel');
+            mediaPanel.style.display = 'none';
+            mediaPanel.innerHTML = '';
+        }
+
+        // Alternar tema
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            const isDark = document.body.dataset.theme === 'dark';
+            document.body.dataset.theme = isDark ? 'light' : 'dark';
+            const icon = document.querySelector('#themeToggle i');
+            icon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+        });
+
+        // Pulsação do botão Enviar ao digitar
+        document.getElementById('messageInput').addEventListener('input', (e) => {
+            const sendButton = document.getElementById('sendButton');
+            sendButton.classList.toggle('active', e.target.value.trim().length > 0);
+        });
+
+        // Adicionar eventos
+        document.getElementById('joinButton').addEventListener('click', joinRoom);
+        document.getElementById('mediaPanel').addEventListener('click', closeMediaPanel);
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#contextMenu')) hideContextMenu();
+        });
+
+        // Verificar reconexão automática
+        if (userData) {
+            document.getElementById('initialPanel').style.display = 'none';
+            document.getElementById('chatContainer').style.display = 'flex';
+            getLocalIP().then(ip => {
+                roomName = ip;
+                const messagesQuery = query(collection(db, `rooms/${roomName}/messages`), orderBy('timestamp'));
+                unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added' || change.type === 'modified') {
+                            displayMessage(change.doc.data(), change.doc.id);
+                        }
+                    });
+                }, (error) => {
+                    console.error('Erro ao escutar mensagens:', error);
+                    alert('Falha ao carregar mensagens. Verifique o console.');
+                });
+            });
+        }
+    </script>
+</body>
+</html>
