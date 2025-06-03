@@ -1,25 +1,22 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCgG8qVpsPMq_nXSAi3Ok-Ri6fBBUklXLc",
-  authDomain: "chat-alpha-e-beta.firebaseapp.com",
-  projectId: "chat-alpha-e-beta",
-  storageBucket: "chat-alpha-e-beta.firebasestorage.app",
-  messagingSenderId: "873372870268",
-  appId: "1:873372870268:web:209c92a30995a415350bf9",
-  measurementId: "G-RVQ446VZRD"
-};
+// Usa o app já inicializado no seu index/chat
+const app = getApps().length ? getApp() : null;
 
-const app = initializeApp(firebaseConfig);
+if (!app) {
+  console.error("Firebase App não inicializado! Certifique-se de inicializar no seu arquivo principal.");
+}
+
 const db = getFirestore(app);
 
-// FontAwesome
+// Adiciona FontAwesome (ícone user)
 const faLink = document.createElement("link");
 faLink.rel = "stylesheet";
 faLink.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
 document.head.appendChild(faLink);
 
+// Cria o botão no canto superior esquerdo
 const btn = document.createElement("button");
 btn.innerHTML = `<i class="fa-solid fa-user"></i>`;
 btn.title = "Mostrar usuários do chat";
@@ -42,6 +39,7 @@ btn.onmouseleave = () => btn.style.backgroundColor = "#282c34";
 
 document.body.appendChild(btn);
 
+// Cria o painel lateral
 const painel = document.createElement("div");
 painel.style.position = "fixed";
 painel.style.top = "0";
@@ -59,6 +57,7 @@ painel.style.fontFamily = "Segoe UI, Tahoma, Geneva, Verdana, sans-serif";
 
 document.body.appendChild(painel);
 
+// Header do painel
 const header = document.createElement("div");
 header.style.display = "flex";
 header.style.justifyContent = "space-between";
@@ -89,6 +88,7 @@ header.appendChild(title);
 header.appendChild(fecharBtn);
 painel.appendChild(header);
 
+// Lista de usuários
 const listaUsuarios = document.createElement("ul");
 listaUsuarios.style.listStyle = "none";
 listaUsuarios.style.padding = "0";
@@ -96,7 +96,7 @@ listaUsuarios.style.margin = "0";
 painel.appendChild(listaUsuarios);
 
 async function carregarUsuarios(roomID) {
-  listaUsuarios.innerHTML = "Carregando usuários...";
+  listaUsuarios.innerHTML = "Carregando historico de usuarios...";
 
   try {
     const usersCol = collection(db, "rooms", roomID, "users");
@@ -105,7 +105,7 @@ async function carregarUsuarios(roomID) {
     listaUsuarios.innerHTML = "";
 
     if (usersSnapshot.empty) {
-      listaUsuarios.textContent = "Nenhum usuário encontrado.";
+      listaUsuarios.textContent = "Nenhum historico de usuários encontrado.";
       return;
     }
 
