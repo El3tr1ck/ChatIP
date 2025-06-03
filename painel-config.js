@@ -1,144 +1,90 @@
 import { getApp, getApps } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
-// Pega o app Firebase já inicializado no projeto
+// Reaproveita o app já inicializado
 const app = getApps().length ? getApp() : null;
-
-if (!app) {
-  console.error("Firebase app não inicializado. Inicialize no seu arquivo principal.");
-}
-
 const db = getFirestore(app);
 
-// Adiciona FontAwesome para ícones (ícone de user)
-const faLink = document.createElement("link");
-faLink.rel = "stylesheet";
-faLink.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
-document.head.appendChild(faLink);
-
-// Cria botão no canto superior esquerdo
+// Cria botão e painel
 const btn = document.createElement("button");
+btn.id = "configBtn";
 btn.innerHTML = `<i class="fa-solid fa-user"></i>`;
-btn.title = "Mostrar usuários do chat";
-
-btn.style.position = "fixed";
-btn.style.top = "12px";
-btn.style.left = "12px";
-btn.style.zIndex = "9999";
-btn.style.padding = "8px 14px";
-btn.style.borderRadius = "6px";
-btn.style.border = "none";
-btn.style.backgroundColor = "#282c34";
-btn.style.color = "#61dafb";
-btn.style.cursor = "pointer";
-btn.style.fontSize = "20px";
-btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-btn.style.transition = "background-color 0.3s ease";
-btn.onmouseenter = () => btn.style.backgroundColor = "#20232a";
-btn.onmouseleave = () => btn.style.backgroundColor = "#282c34";
-
 document.body.appendChild(btn);
 
-// Painel lateral para exibir usuários
-const painel = document.createElement("div");
-painel.style.position = "fixed";
-painel.style.top = "0";
-painel.style.left = "-320px";
-painel.style.width = "320px";
-painel.style.height = "100vh";
-painel.style.backgroundColor = "#20232a";
-painel.style.color = "#61dafb";
-painel.style.padding = "20px";
-painel.style.boxShadow = "2px 0 8px rgba(0,0,0,0.4)";
-painel.style.transition = "left 0.3s ease";
-painel.style.overflowY = "auto";
-painel.style.zIndex = "9998";
-painel.style.fontFamily = "Segoe UI, Tahoma, Geneva, Verdana, sans-serif";
+const panel = document.createElement("div");
+panel.id = "configPanel";
+panel.style.display = "none";
+panel.innerHTML = `<h3>Membros da sala</h3><ul id="userList"></ul>`;
+document.body.appendChild(panel);
 
-document.body.appendChild(painel);
-
-// Header do painel com título e botão fechar
-const header = document.createElement("div");
-header.style.display = "flex";
-header.style.justifyContent = "space-between";
-header.style.alignItems = "center";
-header.style.marginBottom = "16px";
-
-const title = document.createElement("h2");
-title.textContent = "Usuários que falaram";
-title.style.margin = "0";
-title.style.fontSize = "1.4rem";
-
-const fecharBtn = document.createElement("button");
-fecharBtn.textContent = "×";
-fecharBtn.title = "Fechar painel";
-fecharBtn.style.fontSize = "24px";
-fecharBtn.style.background = "none";
-fecharBtn.style.border = "none";
-fecharBtn.style.color = "#61dafb";
-fecharBtn.style.cursor = "pointer";
-fecharBtn.style.lineHeight = "1";
-fecharBtn.style.padding = "0";
-
-fecharBtn.onclick = () => {
-  painel.style.left = "-320px";
-};
-
-header.appendChild(title);
-header.appendChild(fecharBtn);
-painel.appendChild(header);
-
-// Lista onde os usuários serão mostrados
-const listaUsuarios = document.createElement("ul");
-listaUsuarios.style.listStyle = "none";
-listaUsuarios.style.padding = "0";
-listaUsuarios.style.margin = "0";
-painel.appendChild(listaUsuarios);
-
-async function carregarUsuarios(roomID) {
-  listaUsuarios.innerHTML = "Carregando usuários...";
-
-  try {
-    const usersCol = collection(db, "rooms", roomID, "users");
-    const usersSnapshot = await getDocs(usersCol);
-
-    listaUsuarios.innerHTML = "";
-
-    if (usersSnapshot.empty) {
-      listaUsuarios.textContent = "Nenhum usuário encontrado.";
-      return;
-    }
-
-    usersSnapshot.forEach(userDoc => {
-      const user = userDoc.data();
-      const li = document.createElement("li");
-      li.style.padding = "6px 0";
-      li.style.borderBottom = "1px solid #282c34";
-      li.style.display = "flex";
-      li.style.alignItems = "center";
-      li.style.gap = "8px";
-
-      li.innerHTML = `<i class="fa-solid fa-user"></i> ${user.name || userDoc.id}`;
-      listaUsuarios.appendChild(li);
-    });
-  } catch (error) {
-    listaUsuarios.textContent = "Erro ao carregar usuários.";
-    console.error(error);
+// Estilos
+const style = document.createElement("style");
+style.textContent = `
+  #configBtn {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1000;
+    background-color: #fff;
+    border: none;
+    border-radius: 50%;
+    padding: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
+  #configPanel {
+    position: fixed;
+    top: 70px;
+    left: 16px;
+    background: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 999;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  body {
+    padding-top: 80px;
+  }
+`;
+document.head.appendChild(style);
+
+// Função para obter IP
+async function getUserIP() {
+  const res = await fetch("https://api.ipify.org?format=json");
+  const data = await res.json();
+  return data.ip;
 }
 
-btn.onclick = () => {
-  if (painel.style.left === "0px") {
-    painel.style.left = "-320px";
-  } else {
-    painel.style.left = "0px";
+// Ação ao clicar no botão
+btn.addEventListener("click", async () => {
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
 
-    const roomID = sessionStorage.getItem("ip");
-    if (!roomID) {
-      listaUsuarios.innerHTML = "IP da sala não encontrado na sessão.";
-      return;
+  if (panel.style.display === "block") {
+    const userList = document.getElementById("userList");
+    userList.innerHTML = "<li>Carregando...</li>";
+
+    try {
+      const ip = await getUserIP();
+      const usersRef = collection(db, "rooms", ip, "users");
+      const snapshot = await getDocs(usersRef);
+
+      if (snapshot.empty) {
+        userList.innerHTML = "<li>Nenhum usuário encontrado.</li>";
+        return;
+      }
+
+      userList.innerHTML = "";
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const nome = data.nome || doc.id;
+        const li = document.createElement("li");
+        li.textContent = nome;
+        userList.appendChild(li);
+      });
+    } catch (err) {
+      userList.innerHTML = `<li>Erro: ${err.message}</li>`;
     }
-
-    carregarUsuarios(roomID);
   }
-};
+});
