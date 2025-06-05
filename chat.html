@@ -355,6 +355,56 @@
                 right: 10px;
             }
         }
+.chat-usuarios #usuariosBtn {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1000;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    padding: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: transform 0.2s, background 0.3s;
+}
+.chat-usuarios #usuariosBtn:hover {
+    background: var(--primary-hover);
+    transform: scale(1.1);
+}
+.chat-usuarios #usuariosPanel {
+    position: fixed;
+    top: 70px;
+    left: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 999;
+    max-height: 300px;
+    overflow-y: auto;
+    animation: fadeIn 0.3s ease-out;
+    backdrop-filter: blur(10px);
+}
+.chat-usuarios #usuariosPanel h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+.chat-usuarios #usuariosPanel ul {
+    list-style: none;
+    padding: 0;
+}
+.chat-usuarios #usuariosPanel li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--text);
+    border-bottom: 1px solid #e5e7eb;
+}
+.chat-usuarios #usuariosPanel li:last-child {
+    border-bottom: none;
+}
     </style>
 </head>
 <body data-theme="light">
@@ -385,6 +435,12 @@
         <button id="copyMessage">Copiar mensagem</button>
         <button id="deleteMessage">Apagar</button>
     </div>
+
+<button id="usuariosBtn" title="Listar Usuários do Chat"><i class="fa-solid fa-users"></i></button>
+<div id="usuariosPanel" style="display: none;">
+    <h3>Usuários que Falaram</h3>
+    <ul id="usuariosList"></ul>
+</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
@@ -661,8 +717,73 @@
             });
         }
     </script>
+<script>
+// Listar usuários que falaram no chat
+async function listarUsuariosChat() {
+    const userList = document.getElementById('usuariosList');
+    userList.innerHTML = '<li>Carregando...</li>';
+
+    try {
+        if (!db) throw new Error('Firestore não inicializado');
+        const ip = await getLocalIP();
+        const messagesRef = collection(db, `rooms/${ip}/messages`);
+        const snapshot = await getDocs(messagesRef);
+
+        if (snapshot.empty) {
+            userList.innerHTML = '<li>Nenhum usuário falou ainda.</li>';
+            return;
+        }
+
+        // Extrair nicks únicos
+        const nicks = new Set();
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.nick && !data.deleted) {
+                nicks.add(data.nick);
+            }
+        });
+
+        userList.innerHTML = '';
+        if (nicks.size === 0) {
+            userList.innerHTML = '<li>Nenhum usuário falou ainda.</li>';
+            return;
+        }
+
+        nicks.forEach(nick => {
+            const li = document.createElement('li');
+            li.textContent = nick;
+            userList.appendChild(li);
+        });
+    } catch (error) {
+        console.error('Erro ao listar usuários do chat:', error);
+        userList.innerHTML = `<li>Erro: ${error.message}</li>`;
+    }
+}
+
+// Gerenciar botão e painel
+const usuariosBtn = document.getElementById('usuariosBtn');
+const usuariosPanel = document.getElementById('usuariosPanel');
+usuariosBtn.addEventListener('click', () => {
+    usuariosPanel.style.display = usuariosPanel.style.display === 'none' ? 'block' : 'none';
+    if (usuariosPanel.style.display === 'block') {
+        listarUsuariosChat();
+    }
+});
+
+// Fechar painel ao clicar fora
+document.addEventListener('click', (e) => {
+    if (!usuariosPanel.contains(e.target) && !usuariosBtn.contains(e.target)) {
+        usuariosPanel.style.display = 'none';
+    }
+});
+
+// Adicionar classe de escopo
+document.querySelector('.chat-container').classList.add('chat-usuarios');
+
+</script>
+
 <!--esse e o local de extensões-->
-<script type="module" src="painel-config.js"></script>
+
 
 
 </body>
